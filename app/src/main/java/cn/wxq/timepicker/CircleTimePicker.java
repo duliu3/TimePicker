@@ -33,6 +33,7 @@ import android.view.animation.AccelerateDecelerateInterpolator;
 
 public class CircleTimePicker extends View {
 
+    private static final String TAG = "CircleTimePicker";
     private final static int TOUCH_HANDLE_SLEEP = 1;
 
     private final static int TOUCH_HANDLE_WAKEUP = 2;
@@ -42,7 +43,7 @@ public class CircleTimePicker extends View {
     private final static int TOUCH_HANDLE_NON = -1;
 
     /**
-     * 时间选择模式
+     * 时间选择模式，会随着旋转
      */
     private final static int PICKER_MODEL_TIME = 1;
 
@@ -104,7 +105,9 @@ public class CircleTimePicker extends View {
     //时间背景画笔粗细度
     private float mHourBackgroundStrokeWidth;
 
-    /**分钟刻度宽度*/
+    /**
+     * 分钟刻度宽度
+     */
     private float mMinuteWidth;
 
     private float mMinuteTextWidth;
@@ -118,11 +121,16 @@ public class CircleTimePicker extends View {
 
     private float mMeasureOffset;
 
-    //手柄位置
-    private RectF mSleepRectF = new RectF();
+    /**
+     * 手柄扩大的点击范围
+     */
+    private float mHandlepadding = 100;
 
     //手柄位置
-    private RectF mWakeupRectF = new RectF();
+    private RectF mStartHandRectF = new RectF();
+
+    //手柄位置
+    private RectF mEndHandRectF = new RectF();
 
     private RectF mMinuteFectF = new RectF();
 
@@ -130,6 +138,9 @@ public class CircleTimePicker extends View {
 
     private GestureDetector mGestureDetector;
 
+    /**
+     * 进入双击状态
+     */
     private boolean mDoubleState;
 
     private ViewConfiguration mViewConfiguration;
@@ -191,7 +202,7 @@ public class CircleTimePicker extends View {
         mHourBackgroundStrokeWidth = ta.getDimension(R.styleable.CircleTimePicker_background_stroke_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 25, displayMetrics));
         mMinuteWidth = ta.getDimension(R.styleable.CircleTimePicker_minute_stroke_size, mHourBackgroundStrokeWidth);
         mHourStrokeWidth = ta.getDimension(R.styleable.CircleTimePicker_hour_stroke_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.5f, displayMetrics));
-        mMinuteTextWidth  = ta.getDimension(R.styleable.CircleTimePicker_text_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20, displayMetrics));
+        mMinuteTextWidth = ta.getDimension(R.styleable.CircleTimePicker_text_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20, displayMetrics));
         mHourRadius = ta.getDimension(R.styleable.CircleTimePicker_hour_redius, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 68, displayMetrics));
         mHourColor = ta.getColor(R.styleable.CircleTimePicker_hour_color, Color.BLACK);
         mHourBackgroundColor = ta.getColor(R.styleable.CircleTimePicker_progress_background_color, Color.WHITE);
@@ -199,7 +210,7 @@ public class CircleTimePicker extends View {
         mProgressColor = ta.getColor(R.styleable.CircleTimePicker_progress_color, Color.GRAY);
         mEndUpAngle = ta.getInt(R.styleable.CircleTimePicker_end_angle, 90);
         mStartAngle = ta.getInt(R.styleable.CircleTimePicker_start_angle, 270);
-        mPickerModel = ta.getInt(R.styleable.CircleTimePicker_picker_model, PICKER_MODEL_TIME);
+        mPickerModel = ta.getInt(R.styleable.CircleTimePicker_picker_model, PICKER_MODEL_RANGE);
 
         mGestureDetector = new GestureDetector(context, mGestrueListener);
         mGestureDetector.setOnDoubleTapListener(mGestureDoubleTapListener);  //设置双击事件监听
@@ -220,8 +231,8 @@ public class CircleTimePicker extends View {
         mTouchHandlePaint.setStyle(Paint.Style.FILL_AND_STROKE);
         mTouchHandlePaint.setColor(Color.YELLOW);
         final float halfStrokeWidth = mHourBackgroundStrokeWidth / 2f;
-        mSleepRectF.set(-halfStrokeWidth, -halfStrokeWidth, halfStrokeWidth, halfStrokeWidth);
-        mWakeupRectF.set(mSleepRectF);
+        mStartHandRectF.set(-halfStrokeWidth, -halfStrokeWidth, halfStrokeWidth, halfStrokeWidth);
+        mEndHandRectF.set(mStartHandRectF);
         ta.recycle();
     }
 
@@ -237,7 +248,7 @@ public class CircleTimePicker extends View {
         final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
         int heightSize = MeasureSpec.getSize(heightMeasureSpec);
         ViewGroup.LayoutParams layoutParams = getLayoutParams();
-        final int defaultSize = (int)((mMinuteRadius + mMeasureOffset) * 2 + mMinuteTextWidth);
+        final int defaultSize = (int) ((mMinuteRadius + mMeasureOffset) * 2 + mMinuteTextWidth);
         int width;
         if (layoutParams.width == ViewGroup.LayoutParams.WRAP_CONTENT || widthSize < defaultSize) {
             width = defaultSize;
@@ -287,6 +298,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 绘制时间刻度
+     *
      * @param canvas
      */
     private void drawCalibration(Canvas canvas) {
@@ -301,15 +313,15 @@ public class CircleTimePicker extends View {
         }
         canvas.drawCircle(0, 0, mHourRadius, mHourPaint);
         final int step = 30;
-        for (int i = 0; i < 360;) {
-            final Point inner = angleConvertPoint(i, (int)calibrantionRadius);
+        for (int i = 0; i < 360; ) {
+            final Point inner = angleConvertPoint(i, (int) calibrantionRadius);
             final Point outer = angleConvertPoint(i, (int) mHourRadius);
             canvas.drawLine(inner.x, inner.y, outer.x, outer.y, mHourPaint);
             final float angle90Multiple = i % 90f;
             if (angle90Multiple == 0) {
                 //90 度的倍数绘制文字
                 String text = String.valueOf((i + 90) / step);
-                Point textPoint = caculateTextPoint(text, (int)calibrantionRadius, (i + 90));
+                Point textPoint = caculateTextPoint(text, (int) calibrantionRadius, (i + 90));
                 canvas.drawText(text, textPoint.x, textPoint.y, mTextPaint);
             }
             i += step;
@@ -331,6 +343,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 计算时间刻度位置
+     *
      * @param text
      * @param radius
      * @param angle
@@ -350,13 +363,14 @@ public class CircleTimePicker extends View {
                 return new Point(-textHalfWidth, -radius + space + textHalfHeight);
             }
         } else {
-            float x = angle < 180 ? radius - space - textHalfWidth : -radius  + space - textHalfWidth;
-            return new Point((int)x, textHalfHeight);
+            float x = angle < 180 ? radius - space - textHalfWidth : -radius + space - textHalfWidth;
+            return new Point((int) x, textHalfHeight);
         }
     }
 
     /**
      * 绘制时间进度
+     *
      * @param canvas
      */
     private void drawProgress(Canvas canvas) {
@@ -382,6 +396,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 绘制分钟刻度
+     *
      * @param canvas
      */
     private void drawMinuteCalibrant(Canvas canvas) {
@@ -394,13 +409,13 @@ public class CircleTimePicker extends View {
         canvas.scale(mScaleValue, mScaleValue);
         canvas.drawCircle(0, 0, mMinuteRadius, mHourPaint);
         final int step = 6;
-        for (int i = 0; i < 360;) {
+        for (int i = 0; i < 360; ) {
             final Point outer = angleConvertPoint(i, (int) mMinuteRadius);
             Point inner;
             if (i % 45 == 0) {
-                inner = angleConvertPoint(i, (int)(calibrantionRadius -  mCalibrantionLenght));
+                inner = angleConvertPoint(i, (int) (calibrantionRadius - mCalibrantionLenght));
             } else {
-                inner = angleConvertPoint(i, (int)calibrantionRadius);
+                inner = angleConvertPoint(i, (int) calibrantionRadius);
             }
             canvas.drawLine(inner.x, inner.y, outer.x, outer.y, mHourPaint);
             i += step;
@@ -411,6 +426,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 绘制手柄
+     *
      * @param canvas
      */
     private void drawTouchHandle(Canvas canvas) {
@@ -420,15 +436,19 @@ public class CircleTimePicker extends View {
         float haldStrokeWidth = mHourBackgroundStrokeWidth / 2;
         canvas.translate(cx, cy);
         Point sleepPoint = caculateTouchHandlePoint(mStartAngle);
-        mSleepRectF.set(-haldStrokeWidth + cx, -haldStrokeWidth + cy, haldStrokeWidth + cx, haldStrokeWidth + cy);
-        mSleepRectF.offset(sleepPoint.x, sleepPoint.y);
+        mStartHandRectF.set(-haldStrokeWidth + cx - mHandlepadding, -haldStrokeWidth + cy -mHandlepadding , haldStrokeWidth + cx + mHandlepadding , haldStrokeWidth + cy + mHandlepadding );
+        Log.d(TAG,"drawTouchHandle mStartHandRectF" + mStartHandRectF.toString());
+        mStartHandRectF.offset(sleepPoint.x, sleepPoint.y);
+        Log.d(TAG,"drawTouchHandle move" + mStartHandRectF.toString());
         mTouchHandlePaint.setColor(Color.RED);
         canvas.drawCircle(sleepPoint.x, sleepPoint.y, mHourStrokeWidth, mTouchHandlePaint);
 
         if (mPickerModel == PICKER_MODEL_RANGE) {
             Point wakeupPoint = caculateTouchHandlePoint(mEndUpAngle);
-            mWakeupRectF.set(-haldStrokeWidth + cx, -haldStrokeWidth + cy, haldStrokeWidth + cx, haldStrokeWidth + cy);
-            mWakeupRectF.offset(wakeupPoint.x, wakeupPoint.y);
+            mEndHandRectF.set(-haldStrokeWidth + cx - mHandlepadding, -haldStrokeWidth + cy - mHandlepadding, haldStrokeWidth + cx + mHandlepadding, haldStrokeWidth + cy + mHandlepadding);
+            Log.d(TAG,"drawTouchHandle mEndHandRectF" + mEndHandRectF.toString());
+            mEndHandRectF.offset(wakeupPoint.x, wakeupPoint.y);
+            Log.d(TAG,"drawTouchHandle mEndHandRectF move" + mEndHandRectF.toString());
             mTouchHandlePaint.setColor(Color.GREEN);
             canvas.drawCircle(wakeupPoint.x, wakeupPoint.y, mHourStrokeWidth, mTouchHandlePaint);
         }
@@ -437,6 +457,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 绘制选择的分钟
+     *
      * @param canvas
      */
     private void drawSelectedMintueText(Canvas canvas) {
@@ -453,17 +474,18 @@ public class CircleTimePicker extends View {
         mTextPaint.getTextBounds(minute, 0, minute.length(), out);
         canvas.drawCircle(0, 0, 40, mHourPaint);
         canvas.drawText(minute, -out.width() / 2f, out.height() / 2f, mTextPaint);
-//        canvas.rotate( minuteAngle / 360f * 120f, out.width() / 2f, out.height() / 2f);
-//        canvas.drawPath(mMinuteTextFramePath, mHourPaint);
-        mMinuteFectF.set(-40, -40, 40, 40);
+        //        canvas.rotate( minuteAngle / 360f * 120f, out.width() / 2f, out.height() / 2f);
+        //        canvas.drawPath(mMinuteTextFramePath, mHourPaint);
+        mMinuteFectF.set(-150, -150, 150, 150);
         mMinuteFectF.offset(cx + point.x, cy + point.y);
         canvas.restore();
     }
 
     /**
      * 获得选择的时间
-     * @return
+     *
      * @param hourAngle
+     * @return
      */
     private int getSelectedMinute(float hourAngle) {
         float angle = hourAngle % 30f * (360 / 30);
@@ -472,11 +494,12 @@ public class CircleTimePicker extends View {
 
     /**
      * 获得选择的时间
+     *
      * @param hourAngle
      * @return
      */
     private int getSelectedHour(float hourAngle) {
-        int hour = (int)((hourAngle + 90) / 30f) % 12;
+        int hour = (int) ((hourAngle + 90) / 30f) % 12;
         if (hour == 0) {
             return 12;
         }
@@ -524,7 +547,7 @@ public class CircleTimePicker extends View {
                     && (mTouchHanlerType != TOUCH_HANDLE_NON || mMintueAcceptTouch)) {
                 if (mPickerModel == PICKER_MODEL_TIME && mTimePickerListener != null) {
                     mTimePickerListener.onTime(getSelectedHour(mStartAngle), getSelectedHour(mStartAngle));
-                } else if (mTimeRangePickerListener != null){
+                } else if (mTimeRangePickerListener != null) {
                     mTimeRangePickerListener.onRangeTime(getSelectedHour(mStartAngle), getSelectedMinute(mStartAngle), getSelectedHour(mEndUpAngle), getSelectedMinute(mEndUpAngle));
                 }
             }
@@ -538,6 +561,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 根据点计算角度
+     *
      * @param x x 坐标
      * @param y y 坐标
      * @return
@@ -550,7 +574,8 @@ public class CircleTimePicker extends View {
 
     /**
      * 先求出这两点间的弦长（设为d）：d＝根号下[(x2－x1)²＋(y2－y1)²]
-     圆心角θ＝2arcsin(d/2r)
+     * 圆心角θ＝2arcsin(d/2r)
+     *
      * @param x1
      * @param y1
      * @param x2
@@ -565,7 +590,7 @@ public class CircleTimePicker extends View {
         y1 -= cy;
         y2 -= cy;
         double sqrt = Math.sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
-        float angle = (float) (2 *  Math.asin(sqrt / (2 * mHourProgressRadius)) * 180 / Math.PI) ;
+        float angle = (float) (2 * Math.asin(sqrt / (2 * mHourProgressRadius)) * 180 / Math.PI);
         if (angle == Float.NaN) {
             if (x2 < cx) {
                 return 180;
@@ -599,24 +624,24 @@ public class CircleTimePicker extends View {
     /**
      * 坐标系象限
      * x>0,y>0时在第一象限
-     x<0,y>0时在第二象限
-     x<0,y<0时在第三象限
-     x>0,y<0时在第四象限
+     * x<0,y>0时在第二象限
+     * x<0,y<0时在第三象限
+     * x>0,y<0时在第四象限
      */
     private float getAngleFromPoint(float x, float y) {
         float angle = caculateAngleByPoint(x, y);
         float cx = getWidth() / 2.f;
         float cy = getHeight() / 2.f;
-        if( x > cx && y >= cy) {//第一象限
+        if (x > cx && y >= cy) {//第一象限
             Log.d("Tag", "第一象限两点之间的角度 ： " + angle);
-//                    angle = 90 - angle;
+            //                    angle = 90 - angle;
         } else if (x < cx && y >= cy) {   //第二象限
             Log.d("Tag", "第二象限两点之间的角度 ： " + angle);
             angle = 180 - angle;
         } else if (x <= cx && y < cy) { //第三象限
             Log.d("Tag", "第三象限两点之间的角度 ： " + angle);
             angle += 180;
-        } else if (x >= cx && y < cy){//第四象限
+        } else if (x >= cx && y < cy) {//第四象限
             Log.d("Tag", "第四象限两点之间的角度 ： " + angle);
             angle = 270 + (90 - angle);
         }
@@ -628,7 +653,7 @@ public class CircleTimePicker extends View {
         public boolean onDown(MotionEvent e) {
             final float x = e.getX();
             final float y = e.getY();
-            Log.d("Tag", "Wakeup Rectf : " + mWakeupRectF + "\t   Sleep rectF : " + mSleepRectF + "\t x = " + x + " \t   y = " + y);
+            Log.d("Tag", "Wakeup Rectf : " + mEndHandRectF + "\t   Sleep rectF : " + mStartHandRectF + "\t x = " + x + " \t   y = " + y);
 
             mTouchDownAngle = getAngleFromPoint(x, y);
             if (mDoubleState) {
@@ -643,9 +668,9 @@ public class CircleTimePicker extends View {
                 }
             }
 
-            if (mWakeupRectF.contains(x, y)) {
+            if (mEndHandRectF.contains(x, y)) {
                 mTouchHanlerType = TOUCH_HANDLE_WAKEUP;
-            } else if (mSleepRectF.contains(x, y)) {
+            } else if (mStartHandRectF.contains(x, y)) {
                 mTouchHanlerType = TOUCH_HANDLE_SLEEP;
             }
             invalidate();
@@ -701,7 +726,7 @@ public class CircleTimePicker extends View {
                         xDeg = -xDeg;
                     }
 
-                    if ( y > mDownY) {
+                    if (y > mDownY) {
                         yDeg = -yDeg;
                     }
                     mRotateX += xDeg;
@@ -718,7 +743,7 @@ public class CircleTimePicker extends View {
                     if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
                         mStartAngle = 360 - dx;
                     } else if (mTouchHanlerType == TOUCH_HANDLE_WAKEUP) {
-                        mEndUpAngle = 360 -dx;
+                        mEndUpAngle = 360 - dx;
                     }
                 } else {
                     if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
@@ -765,7 +790,7 @@ public class CircleTimePicker extends View {
         mCamera.rotateY(mRotateX);
         mCamera.getMatrix(mMatrix);
         mMatrix.preTranslate(-cx, -cy);   //居中旋转
-        mMatrix.postTranslate(cx,cy);
+        mMatrix.postTranslate(cx, cy);
         mCamera.restore();
     }
 
@@ -787,6 +812,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 执行缩放动画
+     *
      * @param startScale
      * @param endScale
      */
@@ -878,7 +904,7 @@ public class CircleTimePicker extends View {
         public boolean onDoubleTap(MotionEvent e) {
             final float x = e.getX();
             final float y = e.getY();
-            boolean state = !mWakeupRectF.contains(x, y) && !mSleepRectF.contains(x, y);
+            boolean state = !mEndHandRectF.contains(x, y) && !mStartHandRectF.contains(x, y);
             if (state) {
                 mDoubleState = !mDoubleState;
                 if (mDoubleState) {
@@ -1013,6 +1039,7 @@ public class CircleTimePicker extends View {
 
     /**
      * 设置时间选择器回调接口
+     *
      * @param listener
      */
     public void setOnTimePickerListner(OnTimePickerListener listener) {
@@ -1028,7 +1055,7 @@ public class CircleTimePicker extends View {
     }
 
     public OnTimeRangePickerListener getOnTimeRangePickerListener() {
-         return mTimeRangePickerListener;
+        return mTimeRangePickerListener;
     }
 
     /**
