@@ -210,7 +210,7 @@ public class BigCircleTimePicker extends View {
         super(context, attrs, defStyleAttr);
         mDisplayMetrics = context.getResources().getDisplayMetrics();
         TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.CircleTimePicker, defStyleAttr, 0);
-        mMeasureOffset = ta.getDimension(R.styleable.CircleTimePicker_measure_offset, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, mDisplayMetrics));
+        mMeasureOffset = ta.getDimension(R.styleable.CircleTimePicker_measure_offset, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 10, mDisplayMetrics));
         mCalibrantionLenght = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, mDisplayMetrics);
         mMinuteWidth = ta.getDimension(R.styleable.CircleTimePicker_minute_stroke_size, mHourBackgroundStrokeWidth);
         mHourStrokeWidth = ta.getDimension(R.styleable.CircleTimePicker_hour_stroke_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.5f, mDisplayMetrics));
@@ -237,7 +237,7 @@ public class BigCircleTimePicker extends View {
         mCamera = new Camera();
         initPaint(mHourBackgroundPaint, mHourBackgroundStrokeWidth, mHourBackgroundColor);
         initPaint(mHourPaint, mHourStrokeWidth, mHourColor);
-        mMinuteRadius = mHourRadius + mHourBackgroundStrokeWidth + mMinuteWidth;
+        mMinuteRadius = mHourRadius + mHourBackgroundStrokeWidth;
         mHourProgressRadius = mHourRadius + mHourBackgroundStrokeWidth / 2f;
 
         float textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20, mDisplayMetrics);
@@ -288,7 +288,7 @@ public class BigCircleTimePicker extends View {
         final int widthSize = MeasureSpec.getSize(widthMeasureSpec);
         int heightSize = MeasureSpec.getSize(heightMeasureSpec);
         ViewGroup.LayoutParams layoutParams = getLayoutParams();
-        final int defaultSize = (int) ((mMinuteRadius + mMeasureOffset) * 2 + mMinuteTextWidth);
+        final int defaultSize = (int) ((mMinuteRadius + mMeasureOffset) * 2);
         int width;
         if (layoutParams.width == ViewGroup.LayoutParams.WRAP_CONTENT || widthSize < defaultSize) {
             width = defaultSize;
@@ -300,7 +300,7 @@ public class BigCircleTimePicker extends View {
         if (layoutParams.height == ViewGroup.LayoutParams.WRAP_CONTENT || heightSize < defaultSize) {
             height = width;
         } else {
-            height = heightSize;
+            height = defaultSize;
         }
 
         setMeasuredDimension(width, height);
@@ -608,7 +608,9 @@ public class BigCircleTimePicker extends View {
             }
 
             mTouchHanlerType = TOUCH_HANDLE_NON;
+            getParent().requestDisallowInterceptTouchEvent(false);
         }
+        getParent().requestDisallowInterceptTouchEvent(true);
         return mGestureDetector.onTouchEvent(event);
     }
 
@@ -747,7 +749,7 @@ public class BigCircleTimePicker extends View {
             float angle = getAngleFromPoint(x, y);
             float dx = angle - mTouchDownAngle;
             float finalAngle = mTouchDownAngle + dx;
-
+//            getParent().requestDisallowInterceptTouchEvent(true);
             if (mTouchHandle) {
                 if (mTouchDownAngle > 270 && finalAngle < 90) {
                     //从第一象限滑动到滴四现象
