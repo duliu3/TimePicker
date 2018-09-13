@@ -1,24 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-                                             android:orientation="vertical"
-    tools:context=".MainActivity">
+              xmlns:app="http://schemas.android.com/apk/res-auto"
+              xmlns:tools="http://schemas.android.com/tools"
+              android:layout_width="match_parent"
+              android:layout_height="match_parent"
+              android:orientation="vertical"
+              tools:context=".MainActivity">
+
     <cn.wxq.timepicker.CircleTimePicker
+        android:id="@+id/circle_time_picker"
         android:layout_width="150dp"
         android:layout_height="150dp"
-        android:id="@+id/circle_time_picker"
+        android:visibility="gone"
         app:background_stroke_size="15dp"
-        app:picker_model="RANGE_PICKER"
-        app:hour_redius="48dp"/>
+        app:hour_redius="48dp"
+        app:picker_model="RANGE_PICKER"/>
 
     <cn.wxq.timepicker.BigCircleTimePicker
+        android:layout_gravity="center"
+        android:id="@+id/circle_time_big_picker"
         android:layout_width="300dp"
         android:layout_height="300dp"
-        android:id="@+id/circle_time_big_picker"
-        app:background_stroke_size="15dp"
+        app:background_stroke_size="18dp"
+        app:hour_redius="88dp"
+        app:min_color="#D8DADE"
         app:picker_model="RANGE_PICKER"
-        app:hour_redius="68dp"/>
+        app:progress_background_color="#D8DADE"/>
 </LinearLayout>

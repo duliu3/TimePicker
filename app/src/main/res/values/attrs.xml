@@ -10,6 +10,8 @@
         <attr name="minute_color" format="color|reference"/>
         <attr name="text_color" format="color|reference"/>
         <attr name="min_color" format="color|reference"/>
+        <attr name="sleep_icon" format="reference"/>
+        <attr name="wake_icon" format="reference"/>
         <attr name="hour_stroke_size" format="dimension|reference"/>
         <attr name="minute_stroke_size" format="dimension|reference"/>
         <attr name="background_stroke_size" format="dimension|reference"/>

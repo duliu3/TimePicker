@@ -1,10 +1,10 @@
 package cn.wxq.timepicker;
 
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
-public class MainActivity extends AppCompatActivity implements CircleTimePicker.OnTimePickerListener, CircleTimePicker.OnTimeRangePickerListener {
+public class MainActivity extends AppCompatActivity implements BigCircleTimePicker.OnTimePickerListener, BigCircleTimePicker.OnTimeRangePickerListener {
 
     private CircleTimePicker mTimePicker;
 
@@ -13,8 +13,13 @@ public class MainActivity extends AppCompatActivity implements CircleTimePicker.
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         mTimePicker = findViewById(R.id.circle_time_picker);
-        mTimePicker.setOnTimePickerListner(this);
-        mTimePicker.setOnTimeRangePickerListener(this);
+//        mTimePicker.setOnTimePickerListner(this);
+//        mTimePicker.setOnTimeRangePickerListener(this);
+
+        BigCircleTimePicker timePicker = findViewById(R.id.circle_time_big_picker);
+        timePicker.setOnTimePickerListner(this);
+        timePicker.setOnTimeRangePickerListener(this);
+
     }
 
     @Override

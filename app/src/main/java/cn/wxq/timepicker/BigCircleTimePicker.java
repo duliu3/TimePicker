@@ -7,14 +7,17 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Camera;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Point;
 import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Shader;
 import android.support.annotation.Nullable;
 import android.util.AttributeSet;
 import android.util.DisplayMetrics;
@@ -77,6 +80,8 @@ public class BigCircleTimePicker extends View {
 
     //时间文字画笔
     private Paint mTextPaint = new Paint();
+
+    private Paint mCenterTextPaint = new Paint();
 
     //时间进度画笔
     private Paint mProgressPaint;
@@ -187,6 +192,11 @@ public class BigCircleTimePicker extends View {
     //刻度和表盘的距离
     private int mScalePadding;
     private DisplayMetrics mDisplayMetrics;
+    private Bitmap mSleepIcon;
+    private Bitmap mWakeIcon;
+    private int mSleepIconWidth;
+    private String mRangeText;
+    private Rect mRect;
 
     public BigCircleTimePicker(Context context) {
         this(context, null);
@@ -201,8 +211,7 @@ public class BigCircleTimePicker extends View {
         mDisplayMetrics = context.getResources().getDisplayMetrics();
         TypedArray ta = context.obtainStyledAttributes(attrs, R.styleable.CircleTimePicker, defStyleAttr, 0);
         mMeasureOffset = ta.getDimension(R.styleable.CircleTimePicker_measure_offset, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 40, mDisplayMetrics));
-        mCalibrantionLenght = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 4, mDisplayMetrics);
-        mHourBackgroundStrokeWidth = ta.getDimension(R.styleable.CircleTimePicker_background_stroke_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 25, mDisplayMetrics));
+        mCalibrantionLenght = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 8, mDisplayMetrics);
         mMinuteWidth = ta.getDimension(R.styleable.CircleTimePicker_minute_stroke_size, mHourBackgroundStrokeWidth);
         mHourStrokeWidth = ta.getDimension(R.styleable.CircleTimePicker_hour_stroke_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 1.5f, mDisplayMetrics));
         mMinuteTextWidth = ta.getDimension(R.styleable.CircleTimePicker_text_size, TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 20, mDisplayMetrics));
@@ -218,6 +227,11 @@ public class BigCircleTimePicker extends View {
 
         mScalePadding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 2, mDisplayMetrics);
 
+        mSleepIcon = BitmapFactory.decodeResource(getResources(), R.drawable.sleep_ic);
+        mWakeIcon = BitmapFactory.decodeResource(getResources(), R.drawable.remind_ic);
+        mSleepIconWidth = mSleepIcon.getWidth();
+        mHourBackgroundStrokeWidth = mSleepIconWidth;
+
         mGestureDetector = new GestureDetector(context, mGestrueListener);
         mViewConfiguration = ViewConfiguration.get(context);
         mCamera = new Camera();
@@ -226,19 +240,38 @@ public class BigCircleTimePicker extends View {
         mMinuteRadius = mHourRadius + mHourBackgroundStrokeWidth + mMinuteWidth;
         mHourProgressRadius = mHourRadius + mHourBackgroundStrokeWidth / 2f;
 
-        mTextPaint.setAntiAlias(true);
-        mTextPaint.setTextSize(ta.getDimension(R.styleable.CircleTimePicker_text_size, 30));
-        mTextPaint.setColor(mTextColor);
+        float textSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 20, mDisplayMetrics);
+        mCenterTextPaint.setTextSize(textSize);
+        mCenterTextPaint.setTextAlign(Paint.Align.CENTER);
+        mCenterTextPaint.setAntiAlias(true);
 
-        mProgressPaint = new Paint(mHourBackgroundPaint);
-        mProgressPaint.setColor(mProgressColor);
+        float numberSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 10, mDisplayMetrics);
+        mTextPaint.setAntiAlias(true);
+        mTextPaint.setTextSize(ta.getDimension(R.styleable.CircleTimePicker_text_size, numberSize));
+        mTextPaint.setColor(mTextColor);
+        mRect = new Rect();
+
+        initProgressPaint();
+        initHandle();
+        ta.recycle();
+    }
+
+    private void initHandle() {
         mTouchHandlePaint = new Paint(mProgressPaint);
         mTouchHandlePaint.setStyle(Paint.Style.FILL_AND_STROKE);
         mTouchHandlePaint.setColor(Color.YELLOW);
         final float halfStrokeWidth = mHourBackgroundStrokeWidth / 2f;
         mStartHandRectF.set(-halfStrokeWidth, -halfStrokeWidth, halfStrokeWidth, halfStrokeWidth);
         mEndHandRectF.set(mStartHandRectF);
-        ta.recycle();
+    }
+
+    private void initProgressPaint() {
+        mProgressPaint = new Paint(mHourBackgroundPaint);
+        LinearGradient linearGradient = new LinearGradient(0, 0, 0, 1200,
+                getResources().getColor(R.color.circle_start),
+                getResources().getColor(R.color.circle_end),
+                Shader.TileMode.CLAMP);
+        mProgressPaint.setShader(linearGradient);
     }
 
     private void initPaint(Paint paint, float strokeWidth, int color) {
@@ -286,13 +319,22 @@ public class BigCircleTimePicker extends View {
         }
 
         drawMinuteCalibrant(canvas);
-
-        drawCalibration(mDrawCanvas);
+        drawCircleRing(mDrawCanvas);
         canvas.drawBitmap(mBitmap, 0, 0, null);
         if (mPickerModel == PICKER_MODEL_RANGE) {
             drawProgress(canvas);
         }
         drawTouchHandle(canvas);
+        //        System.out.println(mStartAngle + "-angel-" + mEndUpAngle);
+        float range;
+        if (mStartAngle > mEndUpAngle) {
+            range = 360f - mStartAngle + mEndUpAngle;
+        } else {
+            range = mEndUpAngle - mStartAngle;
+        }
+        mRangeText = (int) (range / 30) + "小时";
+        mCenterTextPaint.getTextBounds(mRangeText, 0, mRangeText.length(), mRect);
+        canvas.drawText(mRangeText, getWidth() / 2 , getHeight() / 2 + mRect.height() / 2 , mCenterTextPaint);
 
         if (m3DState) {
             //            drawSelectedMintueText(canvas);
@@ -301,11 +343,11 @@ public class BigCircleTimePicker extends View {
     }
 
     /**
-     * 绘制时间文字
+     * 绘制圆圈
      *
      * @param canvas
      */
-    private void drawCalibration(Canvas canvas) {
+    private void drawCircleRing(Canvas canvas) {
         final float calibrantionRadius = mHourRadius - mCalibrantionLenght;
         canvas.save();
         float cx = getWidth() / 2.f;
@@ -313,26 +355,10 @@ public class BigCircleTimePicker extends View {
         mHourPaint.setColor(mHourColor);
         canvas.translate(cx, cy);
         if (mPickerModel == PICKER_MODEL_RANGE) {
+            //底部圆圈
             canvas.drawCircle(0, 0, mHourRadius + mHourBackgroundStrokeWidth / 2, mHourBackgroundPaint);
         }
-        canvas.drawCircle(0, 0, mHourRadius, mHourPaint);
-        //        final int step = 30;
-        //        for (int i = 0; i < 360; ) {
-        //            final float angle90Multiple = i % 30f;
-        //            if (angle90Multiple == 0) {
-        //                //30 度的倍数绘制文字
-        //                String text = "";
-        //                if (i >= 0 && i <= 270) {
-        //                    text = String.valueOf((i + 90) / step);
-        //                } else {
-        //                    text = String.valueOf((i - 270) / step);
-        //                }
-        //                Point point = angleConvertPoint(i, (int) ((int) calibrantionRadius - mScalePadding * 2 - mCalibrantionLenght));
-        //                System.out.println(i + "-" + point.x + ":" + point.y);
-        //                canvas.drawText(text, point.x, point.y, mTextPaint);
-        //            }
-        //            i += step;
-        //        }
+        //        canvas.drawCircle(0, 0, mHourRadius, mHourPaint);
         canvas.restore();
     }
 
@@ -407,9 +433,8 @@ public class BigCircleTimePicker extends View {
      * @param canvas
      */
     private void drawMinuteCalibrant(Canvas canvas) {
-        final float calibrantionRadius = mHourRadius - mCalibrantionLenght - mScalePadding;
+        final float calibrantionRadius = mHourRadius - mCalibrantionLenght;
         canvas.save();
-        mHourPaint.setColor(mMinuteColor);
         float cx = getWidth() / 2.f;
         float cy = getHeight() / 2.f;
         canvas.translate(cx, cy);
@@ -438,12 +463,11 @@ public class BigCircleTimePicker extends View {
             } else {
                 mHourPaint.setColor(getMinuteColor());
             }
-
+            //绘制刻度 半径越小刻度越长
             inner = angleConvertPoint(i, (int) calibrantionRadius);
             canvas.drawLine(inner.x, inner.y, outer.x, outer.y, mHourPaint);
             i += step;
         }
-
         canvas.restore();
     }
 
@@ -464,8 +488,11 @@ public class BigCircleTimePicker extends View {
         mStartHandRectF.offset(sleepPoint.x, sleepPoint.y);
         Log.d(TAG, "drawTouchHandle move" + mStartHandRectF.toString());
         mTouchHandlePaint.setColor(Color.RED);
-        canvas.drawCircle(sleepPoint.x, sleepPoint.y, mHourStrokeWidth, mTouchHandlePaint);
 
+
+        if (mSleepIcon != null) {
+            canvas.drawBitmap(mSleepIcon, sleepPoint.x - mSleepIcon.getHeight() / 2, sleepPoint.y - mSleepIcon.getHeight() / 2, mTouchHandlePaint);
+        }
         if (mPickerModel == PICKER_MODEL_RANGE) {
             Point wakeupPoint = caculateTouchHandlePoint(mEndUpAngle);
             mEndHandRectF.set(-haldStrokeWidth + cx - mHandlepadding, -haldStrokeWidth + cy - mHandlepadding, haldStrokeWidth + cx + mHandlepadding, haldStrokeWidth + cy + mHandlepadding);
@@ -473,10 +500,13 @@ public class BigCircleTimePicker extends View {
             mEndHandRectF.offset(wakeupPoint.x, wakeupPoint.y);
             Log.d(TAG, "drawTouchHandle mEndHandRectF move" + mEndHandRectF.toString());
             mTouchHandlePaint.setColor(Color.GREEN);
-            canvas.drawCircle(wakeupPoint.x, wakeupPoint.y, mHourStrokeWidth, mTouchHandlePaint);
+            if (mWakeIcon != null) {
+                canvas.drawBitmap(mWakeIcon, wakeupPoint.x - mWakeIcon.getHeight() / 2, wakeupPoint.y - mWakeIcon.getHeight() / 2, mTouchHandlePaint);
+            }
         }
         canvas.restore();
     }
+
 
     /**
      * 绘制选择的分钟
