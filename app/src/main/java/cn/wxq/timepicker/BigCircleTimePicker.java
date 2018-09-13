@@ -196,7 +196,7 @@ public class BigCircleTimePicker extends View {
     private Bitmap mWakeIcon;
     private int mSleepIconWidth;
     private String mRangeText;
-    private Rect mRect;
+    private Rect mTextRect;
 
     public BigCircleTimePicker(Context context) {
         this(context, null);
@@ -249,7 +249,9 @@ public class BigCircleTimePicker extends View {
         mTextPaint.setAntiAlias(true);
         mTextPaint.setTextSize(ta.getDimension(R.styleable.CircleTimePicker_text_size, numberSize));
         mTextPaint.setColor(mTextColor);
-        mRect = new Rect();
+        mTextRect = new Rect();
+        mRangeText = "0小时";
+        mCenterTextPaint.getTextBounds(mRangeText, 0, mRangeText.length(), mTextRect);
 
         initProgressPaint();
         initHandle();
@@ -325,7 +327,14 @@ public class BigCircleTimePicker extends View {
             drawProgress(canvas);
         }
         drawTouchHandle(canvas);
-        //        System.out.println(mStartAngle + "-angel-" + mEndUpAngle);
+        drawCenterText(canvas);
+        if (m3DState) {
+            //            drawSelectedMintueText(canvas);
+            canvas.restore();
+        }
+    }
+
+    private void drawCenterText(Canvas canvas) {
         float range;
         if (mStartAngle > mEndUpAngle) {
             range = 360f - mStartAngle + mEndUpAngle;
@@ -333,13 +342,7 @@ public class BigCircleTimePicker extends View {
             range = mEndUpAngle - mStartAngle;
         }
         mRangeText = (int) (range / 30) + "小时";
-        mCenterTextPaint.getTextBounds(mRangeText, 0, mRangeText.length(), mRect);
-        canvas.drawText(mRangeText, getWidth() / 2 , getHeight() / 2 + mRect.height() / 2 , mCenterTextPaint);
-
-        if (m3DState) {
-            //            drawSelectedMintueText(canvas);
-            canvas.restore();
-        }
+        canvas.drawText(mRangeText, getWidth() / 2 , getHeight() / 2 + mTextRect.height() / 2 , mCenterTextPaint);
     }
 
     /**
@@ -457,7 +460,6 @@ public class BigCircleTimePicker extends View {
                 }
                 mTextPaint.getTextBounds(text, 0, text.length(), rect);   //获取字条大小
                 Point point = angleConvertPoint(i, (int) ((int) calibrantionRadius - mScalePadding * 2 - mCalibrantionLenght));
-                System.out.println(i + "-" + point.x + ":" + point.y);
                 canvas.drawText(text, point.x - rect.width() / 2, point.y + rect.height() / 2, mTextPaint);
                 //                inner = angleConvertPoint(i, (int) (calibrantionRadius - mCalibrantionLenght));
             } else {
