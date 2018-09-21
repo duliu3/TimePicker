@@ -45,6 +45,15 @@ public class BigCircleTimePicker extends View {
 
     private final static int TOUCH_HANDLE_NON = -1;
 
+    private final static int TIME_24H = 0;
+
+    private final static int TIME_12H = 1;
+
+    /**
+     * 时间范围模式
+     */
+    private final static int TIME_MODE = TIME_24H;
+
     /**
      * 时间选择模式，会随着旋转
      */
@@ -95,6 +104,10 @@ public class BigCircleTimePicker extends View {
     //时间刻度颜色
     private int mHourColor = Color.BLACK;
 
+    private boolean mIsSleepDaytime;
+
+    private boolean mIsWakeDaytime;
+
     //分钟时间刻度颜色
     private int mMinuteColor;
 
@@ -120,9 +133,9 @@ public class BigCircleTimePicker extends View {
     //时间刻度长度
     private float mCalibrantionLenght;
 
-    private float mStartAngle = 270;
+    private float mStartAngle;
 
-    private float mEndUpAngle = 45;
+    private float mEndUpAngle;
 
     private float mMeasureOffset;
 
@@ -197,6 +210,9 @@ public class BigCircleTimePicker extends View {
     private int mSleepIconWidth;
     private String mRangeText;
     private Rect mTextRect;
+    private int mSelectedSleepHour;
+    private int mSelectedWakeHour;
+    private int mSleepIntervelHour;
 
     public BigCircleTimePicker(Context context) {
         this(context, null);
@@ -335,13 +351,15 @@ public class BigCircleTimePicker extends View {
     }
 
     private void drawCenterText(Canvas canvas) {
-        float range;
-        if (mStartAngle > mEndUpAngle) {
-            range = 360f - mStartAngle + mEndUpAngle;
+//        int sleep = getSelectedHourByAllDay(mStartAngle, mIsSleepDaytime);
+//        int wake = getSelectedHourByAllDay(mEndUpAngle, mIsWakeDaytime);
+        if (mSelectedWakeHour >= mSelectedSleepHour) {
+            mSleepIntervelHour = mSelectedWakeHour - mSelectedSleepHour;
         } else {
-            range = mEndUpAngle - mStartAngle;
+//          4 23, 24 - 23 + 4
+            mSleepIntervelHour = 24 - mSelectedSleepHour + mSelectedWakeHour;
         }
-        mRangeText = (int) (range / 30) + "小时";
+        mRangeText = (int) mSleepIntervelHour + "小时";
         canvas.drawText(mRangeText, getWidth() / 2 , getHeight() / 2 + mTextRect.height() / 2 , mCenterTextPaint);
     }
 
@@ -426,6 +444,11 @@ public class BigCircleTimePicker extends View {
         } else {
             sweep = 360 - (start - end);
         }
+//     23 22
+        if (mSleepIntervelHour > 12) {
+            sweep = 360;
+        }
+
         canvas.drawArc(rectF, start, sweep, false, mProgressPaint);
         canvas.restore();
     }
@@ -561,6 +584,36 @@ public class BigCircleTimePicker extends View {
         return hour;
     }
 
+    /**
+     * 获得选择的时间
+     *
+     * @param hourAngle
+     * @return
+     */
+    private int getSelectedWakeHour(float hourAngle) {
+        int hour = (int) ((hourAngle + 90) / 30f) % 12;
+        if (hour == 0 && (mIsSleepDaytime || mIsWakeDaytime)) {
+            return 12;
+        }
+        return hour;
+    }
+
+    private int getSelectedHourByAllDay(float hourAngle, boolean isDaytime) {
+        int hour = (int) ((hourAngle + 90) / 30f) % 12;
+        if  (!isDaytime) {
+            hour = hour + 12;
+        }
+
+        if (hour == 24) {
+            return 0;
+        }
+
+        if (hour == 0) {
+            return 12;
+        }
+        return hour;
+    }
+
     //获取小时表盘设置的分钟角度
     private float getMinuteAngle() {
         float hourAngle;
@@ -598,12 +651,15 @@ public class BigCircleTimePicker extends View {
                 executeRotateAnimator(mRotateX, -mRotateX, mRotateY, -mRotateY);
             }
 
+            mSelectedSleepHour = getSelectedHourByAllDay(mStartAngle, mIsSleepDaytime);
+            mSelectedWakeHour = getSelectedHourByAllDay(mEndUpAngle, mIsWakeDaytime);
             if (action == MotionEvent.ACTION_UP
                     && (mTouchHanlerType != TOUCH_HANDLE_NON || mTouchHandle)) {
                 if (mPickerModel == PICKER_MODEL_TIME && mTimePickerListener != null) {
-                    mTimePickerListener.onTime(getSelectedHour(mStartAngle), getSelectedHour(mStartAngle));
+                    mTimePickerListener.onTime(getSelectedHour(mStartAngle), getSelectedMinute(mStartAngle));
                 } else if (mTimeRangePickerListener != null) {
-                    mTimeRangePickerListener.onRangeTime(getSelectedHour(mStartAngle), getSelectedMinute(mStartAngle), getSelectedHour(mEndUpAngle), getSelectedMinute(mEndUpAngle));
+
+                    mTimeRangePickerListener.onRangeTime(mSelectedSleepHour, getSelectedMinute(mStartAngle), mSelectedWakeHour, getSelectedMinute(mEndUpAngle));
                 }
             }
 
@@ -751,13 +807,25 @@ public class BigCircleTimePicker extends View {
             float finalAngle = mTouchDownAngle + dx;
 //            getParent().requestDisallowInterceptTouchEvent(true);
             if (mTouchHandle) {
+                if (mTouchDownAngle < 270 && finalAngle >= 270 ||
+                        ((mTouchDownAngle >= 270 && finalAngle < 270))) {
+                    if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
+                        mIsSleepDaytime = !mIsSleepDaytime;
+                    } else {
+                        mIsWakeDaytime = !mIsWakeDaytime;
+                    }
+                }
+                System.out.println("日夜切换 白天睡觉" +  mIsSleepDaytime + "- 白天起床-" + mIsWakeDaytime);
                 if (mTouchDownAngle > 270 && finalAngle < 90) {
                     //从第一象限滑动到滴四现象
                     if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
                         mStartAngle = 360 - dx;
+
                     } else if (mTouchHanlerType == TOUCH_HANDLE_WAKEUP) {
                         mEndUpAngle = 360 - dx;
+
                     }
+
                 } else {
                     if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
                         mStartAngle = (mStartAngle + dx + 360) % 360;

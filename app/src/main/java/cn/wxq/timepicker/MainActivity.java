@@ -29,6 +29,6 @@ public class MainActivity extends AppCompatActivity implements BigCircleTimePick
 
     @Override
     public void onRangeTime(int startHour, int startMinute, int endHour, int endMinute) {
-        Log.d("Tag", String.format("选择的时间%02d:%02d ---%02d:%02d", startHour, startMinute, endHour, endMinute));
+        Log.d("Tag", String.format("选择的时间 睡觉 %02d:%02d --- 起床 %02d:%02d", startHour, startMinute, endHour, endMinute));
     }
 }
