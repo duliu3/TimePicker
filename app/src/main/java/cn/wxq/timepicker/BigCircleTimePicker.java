@@ -687,7 +687,6 @@ public class BigCircleTimePicker extends View {
                 if (mPickerModel == PICKER_MODEL_TIME && mTimePickerListener != null) {
                     mTimePickerListener.onTime(getSelectedHour(mStartAngle), getSelectedMinute(mStartAngle));
                 } else if (mTimeRangePickerListener != null) {
-
                     mTimeRangePickerListener.onRangeTime(mSelectedSleepHour, getSelectedMinute(mStartAngle), mSelectedWakeHour, getSelectedMinute(mEndUpAngle));
                 }
             }
@@ -840,11 +839,9 @@ public class BigCircleTimePicker extends View {
             if (mTouchHandle) {
                 System.out.println("拖动角度" + mTouchDownAngle + "-" + finalAngle);
                 //以12点为分界点，切换白天黑夜
-                if ((mTouchDownAngle < 270 && mTouchDownAngle > 180) && finalAngle > 270 ||
-                        ((mTouchDownAngle > 270 && (finalAngle < 270 && finalAngle > 180)))
+                if ((mTouchDownAngle < 270 && mTouchDownAngle > 180) && finalAngle >= 270 ||
+                        ((mTouchDownAngle >= 270 && (finalAngle < 270 && finalAngle > 180)))
                         ) {
-                    //                if ((mTouchDownAngle <= 270 && mTouchDownAngle >= 180) && finalAngle >= 270 ||
-                    //                        ((mTouchDownAngle >= 270 && (finalAngle <= 270 && finalAngle >= 180)))) {
                     System.out.println("final " + finalAngle);
                     if (mTouchHanlerType == TOUCH_HANDLE_SLEEP) {
                         mIsSleepDaytime = !mIsSleepDaytime;
