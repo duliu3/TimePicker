@@ -19,6 +19,7 @@ public class MainActivity extends AppCompatActivity implements BigCircleTimePick
         BigCircleTimePicker timePicker = findViewById(R.id.circle_time_big_picker);
         timePicker.setOnTimePickerListner(this);
         timePicker.setOnTimeRangePickerListener(this);
+        timePicker.setTime("15:20", "6:30");
 
     }
 
