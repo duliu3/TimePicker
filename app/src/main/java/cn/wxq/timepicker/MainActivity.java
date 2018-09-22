@@ -20,7 +20,6 @@ public class MainActivity extends AppCompatActivity implements BigCircleTimePick
         timePicker.setOnTimePickerListner(this);
         timePicker.setOnTimeRangePickerListener(this);
         timePicker.setTime("15:20", "6:30");
-
     }
 
     @Override

@@ -340,10 +340,10 @@ public class BigCircleTimePicker extends View {
         drawCircleRing(mDrawCanvas);
         canvas.drawBitmap(mBitmap, 0, 0, null);
         if (mPickerModel == PICKER_MODEL_RANGE) {
+            drawCenterText(canvas);
             drawProgress(canvas);
         }
         drawTouchHandle(canvas);
-        drawCenterText(canvas);
         if (m3DState) {
             //            drawSelectedMintueText(canvas);
             canvas.restore();
@@ -353,6 +353,7 @@ public class BigCircleTimePicker extends View {
     private void drawCenterText(Canvas canvas) {
         //        int sleep = getSelectedHourByAllDay(mStartAngle, mIsSleepDaytime);
         //        int wake = getSelectedHourByAllDay(mEndUpAngle, mIsWakeDaytime);
+        System.out.println("drawCenterText" + mSelectedWakeHour + "-" + mSelectedSleepHour);
         if (mSelectedWakeHour >= mSelectedSleepHour) {
             mSleepIntervelHour = mSelectedWakeHour - mSelectedSleepHour;
         } else {
@@ -592,16 +593,19 @@ public class BigCircleTimePicker extends View {
             return;
         }
 
-        mSelectedSleepHour = Integer.valueOf(sleep[0]);
-        mSelectedWakeHour = Integer.valueOf(wake[0]);
-        mStartAngle = timeSwitchAngel(Integer.valueOf(sleep[0]), Integer.valueOf(sleep[1]));
-        mEndUpAngle = timeSwitchAngel(Integer.valueOf(wake[0]), Integer.valueOf(wake[1]));
+        int sleepHour = Integer.valueOf(sleep[0]);
+        int wakeHour = Integer.valueOf(wake[0]);
+        mSelectedWakeHour = wakeHour;
+        mSelectedSleepHour = sleepHour;
+        mIsSleepDaytime = sleepHour <= 12;
+        mIsWakeDaytime = wakeHour <= 12;
+        mStartAngle = timeSwitchAngel(sleepHour, Integer.valueOf(sleep[1]));
+        mEndUpAngle = timeSwitchAngel(wakeHour, Integer.valueOf(wake[1]));
         invalidate();
     }
 
     private int timeSwitchAngel(int hour, int min) {
         int minAngel = (int) (Integer.valueOf(min) * 0.5);
-        mIsSleepDaytime = hour <= 12;
         if (hour > 12) {
             hour = hour - 12;
         }
